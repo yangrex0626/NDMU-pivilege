@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>國防醫生存等級測驗 | NDMC Privilege Check</title>
+    <meta name="description" content="你是天選之子還是內湖監獄的服刑人員？測測你的國防醫特權指數。">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'ndmc-green': '#3f5d46', /* 軍綠 */
+                        'ndmc-blue': '#1e3a8a',  /* 醫生袍藍 */
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .custom-checkbox input:checked + div {
+            background-color: #3f5d46; /* 選中變軍綠 */
+            border-color: #3f5d46;
+            color: white;
+        }
+        .custom-checkbox input:checked + div svg {
+            display: block;
+        }
+        .custom-checkbox input:checked + div p {
+            color: #d1fae5;
+        }
+        /* 特別針對童醫院選項的樣式 */
+        .god-mode input:checked + div {
+            background: linear-gradient(135deg, #FFD700, #DAA520);
+            border-color: #FFD700;
+            color: #000;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+            transform: scale(1.02);
+        }
+        .god-mode input:checked + div p {
+            color: #333;
+            font-weight: 900;
+        }
+        
+        @keyframes rainbow {
+            0% { border-color: red; }
+            20% { border-color: orange; }
+            40% { border-color: yellow; }
+            60% { border-color: green; }
+            80% { border-color: blue; }
+            100% { border-color: violet; }
+        }
+        .god-mode-active {
+            animation: rainbow 2s infinite;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.6s ease-out forwards;
+            opacity: 0;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen pb-24 bg-gray-100">
+
+    <!-- 頂部 Header -->
+    <header class="bg-ndmc-green text-white sticky top-0 z-50 shadow-md">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl md:text-2xl font-black tracking-widest flex items-center gap-2">
+                    🎖️ 國防醫生存等級測驗
+                </h1>
+                <p class="text-xs text-green-200 mt-1 opacity-80">NDMC Survival & Privilege Check</p>
+            </div>
+            <div class="text-right">
+                <div class="text-xs text-green-200">目前戰力指數</div>
+                <div class="text-3xl font-bold font-mono" id="header-score">0</div>
+            </div>
+        </div>
+        <div class="h-1.5 w-full bg-green-900">
+            <div id="progress-bar" class="h-full bg-yellow-400 transition-all duration-300" style="width: 0%"></div>
+        </div>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="max-w-3xl mx-auto px-4 py-8 space-y-10">
+
+        <!-- 警告標語 -->
+        <div class="bg-white p-5 rounded-xl shadow border-l-4 border-yellow-500 fade-in">
+            <h2 class="font-bold text-gray-800 text-lg mb-2">⚠️ 作答須知</h2>
+            <p class="text-gray-600 text-sm leading-relaxed">
+                本測驗旨在評估你在國防醫學院（NDMC）食物鏈中的位置。
+                <br>分數越高，代表你的軍旅/醫學生活越像在度假（或你本身就是規則制定者）。
+                <br>請憑直覺作答，<strong>長官不會看到這份問卷，請放心。</strong>
+            </p>
+        </div>
+
+        <!-- 題目生成區 -->
+        <div id="quiz-container" class="space-y-12">
+            <!-- JS 渲染題目 -->
+        </div>
+
+        <!-- 提交按鈕 -->
+        <div class="flex justify-center pt-8 pb-12 fade-in">
+            <button onclick="calculateResult()" class="group relative px-8 py-4 bg-ndmc-green hover:bg-green-800 text-white text-xl font-bold rounded-xl shadow-xl transition-all transform hover:scale-105 active:scale-95">
+                <span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-bounce">點我結訓</span>
+                查看階級分析
+            </button>
+        </div>
+
+    </main>
+
+    <!-- 結果 Modal -->
+    <div id="result-modal" class="fixed inset-0 z-[60] hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-900 bg-opacity-90 transition-opacity backdrop-blur-sm" onclick="closeModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            
+            <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-xl sm:w-full relative">
+                
+                <!-- 結果標頭 -->
+                <div class="bg-gray-800 px-4 py-8 text-center relative overflow-hidden">
+                    <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                    <p class="text-gray-400 text-sm uppercase tracking-widest mb-2">Result Analysis</p>
+                    <h3 class="text-3xl font-black text-white mb-2" id="result-title">稱號載入中...</h3>
+                    <div class="text-6xl font-mono font-bold text-yellow-400 my-4" id="final-score">0</div>
+                    <p class="text-gray-300 text-sm" id="result-subtitle">超越了 ??% 的入伍生</p>
+                </div>
+
+                <!-- 結果內容 -->
+                <div class="p-6 sm:p-8 space-y-4">
+                    <div id="god-mode-alert" class="hidden bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded">
+                        <p class="font-bold">👑 偵測到皇室血統</p>
+                        <p>整個海線都是你家的，還來測什麼試？</p>
+                    </div>
+
+                    <div class="prose prose-sm text-gray-700" id="result-text">
+                        <!-- 分析文字 -->
+                    </div>
+
+                    <div class="mt-6 pt-6 border-t border-gray-100 flex gap-3">
+                        <button onclick="closeModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-lg transition">
+                            再測一次
+                        </button>
+                        <button onclick="alert('請截圖分享到限時動態，並標記那位過很爽的同學。')" class="flex-1 bg-ndmc-green hover:bg-green-800 text-white font-bold py-3 rounded-lg transition">
+                            分享結果
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 題目資料庫 (搞笑 + NDMC 梗)
+        const categories = [
+            {
+                id: "god_tier",
+                title: "👑 終極天選之人 (The God Tier)",
+                description: "勾選此項，直接登出人生 Online (破關)。",
+                questions: [
+                    { text: "您是傳說中的「童醫院」繼承人（或家族與其有深厚關係）。", isGod: true },
+                    { text: "您的長輩名字有出現在學校任何一棟大樓、圖書館或講堂的名稱上。", weight: 5 }
+                ]
+            },
+            {
+                id: "basic_rights",
+                title: "⚓ 內湖監獄基本人權 (Basic Rights)",
+                description: "在內湖這塊地，活得像個人就是一種特權。",
+                questions: [
+                    { text: "您大一時，寢室就有冷氣且可以隨便開（不用插卡或偷電）。" },
+                    { text: "您不需要為了「點放」要在早上八點穿著制服在大門口排隊檢查儀容。" },
+                    { text: "您從來沒有在餐廳吃過傳說中的「螢光咖哩」或「硬得像石頭的豬排」。" },
+                    { text: "您沒有經歷過「入伍訓」或「暑訓」的洗禮（或全程全休轉診）。" },
+                    { text: "您的寢室沒有老鼠、蟑螂或不明生物陪睡。" },
+                    { text: "您在學期間，可以自由染髮、留長髮（男生）或不穿制服進出校門。" }
+                ]
+            },
+            {
+                id: "hierarchy",
+                title: "⭐ 階級與學長姐制度 (Hierarchy)",
+                description: "學長說的不是話，是聖旨。",
+                questions: [
+                    { text: "您在走廊上遇到學長姐，不需要停下來敬禮問好（或您就是那個學長）。" },
+                    { text: "您是「實習隊長/大隊長/總實習官」，基本上您就是學生裡的王。" },
+                    { text: "您從來沒有因為棉被折不好、皮鞋不亮而被禁足（08）。" },
+                    { text: "分科選醫院時，您已經「被安排」好了，完全不擔心抽籤。" },
+                    { text: "您在醫院實習（Clerk/Intern）時，主治醫師（VS）是您叔叔/伯伯/爸媽的朋友。" }
+                ]
+            },
+            {
+                id: "rich_kid",
+                title: "💰 醫二代與鈔能力 (Rich Kid Vibes)",
+                description: "別人的終點是你的起點。",
+                questions: [
+                    { text: "您的父母雙方至少有一位是醫生或牙醫。" },
+                    { text: "您的大體解剖課（大體老師）不需要跟別人擠，或者您有私人管道先預習。" },
+                    { text: "您放假回家是搭高鐵商務艙，或是家裡開車來接（而且是進口車）。" },
+                    { text: "您擁有全套最新的 Apple 設備（MacBook Pro + iPad Pro + Pencil + iPhone 16 Pro Max）。" },
+                    { text: "您完全不需要擔心未來的「賠償費」問題（如果要退學/退伍的話）。" },
+                    { text: "您在台北有自購房產，週末不需要回宿舍，直接回自己的豪宅。" }
+                ]
+            },
+            {
+                id: "talent",
+                title: "🧠 學霸與天賦 (Pure Talent)",
+                description: "有些特權是腦袋給的。",
+                questions: [
+                    { text: "考前一晚才唸書，結果考出來還是全班前三名（卷哥/卷姐）。" },
+                    { text: "您的國考（醫師/牙醫/藥師執照）是一次就過，而且覺得很簡單。" },
+                    { text: "您能夠邊跑社團、邊談戀愛、邊打系隊，然後成績還不會被當。" },
+                    { text: "您從來沒有修過「暑修」或找老師求情加分。" }
+                ]
+            }
+        ];
+
+        let score = 0;
+        let isTungsHeir = false; // 童醫院繼承人 flag
+        let totalWeight = 0;
+
+        // 計算總權重
+        categories.forEach(cat => {
+            cat.questions.forEach(q => {
+                if (!q.isGod) {
+                    totalWeight += (q.weight || 1);
+                }
+            });
+        });
+
+        function init() {
+            const container = document.getElementById('quiz-container');
+            
+            categories.forEach((cat, index) => {
+                const section = document.createElement('div');
+                section.className = "bg-white rounded-2xl p-6 shadow-sm fade-in";
+                section.style.animationDelay = `${index * 0.1}s`;
+
+                let questionsHtml = cat.questions.map((q, qIdx) => {
+                    const isGodClass = q.isGod ? "god-mode" : "";
+                    const labelClass = q.isGod ? "text-yellow-700 font-bold" : "text-gray-700";
+                    
+                    return `
+                    <label class="custom-checkbox ${isGodClass} flex cursor-pointer group mb-4 last:mb-0">
+                        <input type="checkbox" class="sr-only" 
+                            data-weight="${q.weight || 1}" 
+                            data-god="${q.isGod || false}"
+                            onchange="updateScore(this)">
+                        <div class="flex-shrink-0 w-6 h-6 mr-3 border-2 border-gray-300 rounded transition-all duration-200 flex items-center justify-center bg-white group-hover:border-green-500">
+                            <svg class="w-4 h-4 text-white hidden pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
+                        <div class="flex-1">
+                            <p class="${labelClass} text-base transition-colors duration-200">${q.text}</p>
+                        </div>
+                    </label>
+                    `;
+                }).join('');
+
+                section.innerHTML = `
+                    <h3 class="text-xl font-bold text-ndmc-green mb-1 flex items-center">
+                        ${cat.title}
+                    </h3>
+                    <p class="text-xs text-gray-500 mb-4 border-b border-gray-100 pb-2">${cat.description}</p>
+                    <div class="space-y-1">
+                        ${questionsHtml}
+                    </div>
+                `;
+                container.appendChild(section);
+            });
+        }
+
+        function updateScore(checkbox) {
+            const weight = parseInt(checkbox.dataset.weight);
+            const isGod = checkbox.dataset.god === "true";
+
+            if (isGod) {
+                isTungsHeir = checkbox.checked;
+                if (isTungsHeir) {
+                    document.body.classList.add('god-mode-active');
+                    playAudioSuccess(); // 假裝有音效
+                } else {
+                    document.body.classList.remove('god-mode-active');
+                }
+            } else {
+                if (checkbox.checked) {
+                    score += weight;
+                } else {
+                    score -= weight;
+                }
+            }
+
+            // Update UI
+            let displayScore = isTungsHeir ? "∞" : score;
+            document.getElementById('header-score').innerText = displayScore;
+            
+            // Progress Bar
+            let percent = isTungsHeir ? 100 : (score / totalWeight) * 100;
+            document.getElementById('progress-bar').style.width = `${Math.min(percent, 100)}%`;
+        }
+
+        function playAudioSuccess() {
+            // 這裡可以放音效邏輯，保持簡單先不放
+        }
+
+        function calculateResult() {
+            const modal = document.getElementById('result-modal');
+            const titleEl = document.getElementById('result-title');
+            const textEl = document.getElementById('result-text');
+            const scoreEl = document.getElementById('final-score');
+            const subtitleEl = document.getElementById('result-subtitle');
+            const godAlert = document.getElementById('god-mode-alert');
+
+            modal.classList.remove('hidden');
+
+            if (isTungsHeir) {
+                scoreEl.innerText = "∞";
+                scoreEl.classList.add("text-yellow-500");
+                titleEl.innerText = "👑 梧棲霸主";
+                subtitleEl.innerText = "超越了 100% 的人類";
+                godAlert.classList.remove('hidden');
+                textEl.innerHTML = `
+                    <p class="text-lg font-bold">這不是特權，這是皇權。</p>
+                    <p>當大家還在煩惱 Intern 內招還是外招，您已經預定好未來的董事長辦公室了。</p>
+                    <p>請您慈悲為懷，多蓋幾棟大樓，造福鄉里。另外，記得幫同學們加薪。</p>
+                    <br>
+                    <p class="text-sm text-gray-500 italic">（建議直接截圖本畫面，去福利社買東西看會不會打折。）</p>
+                `;
+                return;
+            }
+
+            godAlert.classList.add('hidden');
+            scoreEl.innerText = score;
+            
+            // 搞笑分析邏輯
+            if (score < 5) {
+                titleEl.innerText = "🥔 內湖邊緣人";
+                subtitleEl.innerText = "超越了 5% 的微生物";
+                textEl.innerHTML = `
+                    <p><strong>慘。太慘了。</strong></p>
+                    <p>你在國防醫的生態系中，大概就是被實驗用的白老鼠。</p>
+                    <p>不但要折棉被、被點名、吃難吃的伙食，還沒有任何背景可以依靠。你唯一擁有的特權就是「呼吸內湖的空氣」。加油好嗎？未來的路還很長（而且很苦）。</p>
+                    <p class="mt-4 font-bold text-ndmc-green">建議：多去成功湖畔散步，思考人生。</p>
+                `;
+            } else if (score < 12) {
+                titleEl.innerText = "🐢 苦命入伍生";
+                subtitleEl.innerText = "超越了 30% 的菜鳥";
+                textEl.innerHTML = `
+                    <p><strong>標準的國防醫社畜。</strong></p>
+                    <p>你偶爾能享受到一點點小確幸（例如今天沒有被學長電），但大部分時間都在體制內掙扎。你有在努力適應這個特殊的環境，但身上還是散發著一股「我很菜」或「我很累」的味道。</p>
+                    <p class="mt-4 font-bold text-ndmc-green">建議：找個有錢的同學當室友，蹭他的冷氣卡。</p>
+                `;
+            } else if (score < 20) {
+                titleEl.innerText = "🦊 資深老油條";
+                subtitleEl.innerText = "超越了 70% 的一般人";
+                textEl.innerHTML = `
+                    <p><strong>你已經學會了「躲」的藝術。</strong></p>
+                    <p>你掌握了在這個體制內生存的訣竅。知道哪堂課可以睡覺，知道哪個長官喜歡聽好話。你的家境可能不錯，或者你本身就是個適應力極強的強者。生活雖有不便，但你總能找到漏洞鑽。</p>
+                    <p class="mt-4 font-bold text-ndmc-green">建議：不要太招搖，小心被督導。</p>
+                `;
+            } else {
+                titleEl.innerText = "🦁 星級指揮官";
+                subtitleEl.innerText = "超越了 95% 的凡人";
+                textEl.innerHTML = `
+                    <p><strong>這所學校根本是你家後花園吧？</strong></p>
+                    <p>你有極強的後盾（父母、長官或財力）。規矩對你來說只是參考用的。你在國防醫的生活體驗跟別人完全不同，別人是在坐牢，你是在體驗「軍事風豪華露營」。</p>
+                    <p class="mt-4 font-bold text-ndmc-green">建議：出來選學生會長，或是請大家喝飲料。</p>
+                `;
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('result-modal').classList.add('hidden');
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
+
